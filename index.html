@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tra cứu EUDR — Phiếu truy xuất nguồn gốc</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root {
+  --ink: #0f1e35;
+  --muted: #6b7a94;
+  --line: #e3e8f0;
+  --bg: #f2f5f9;
+  --card: #ffffff;
+  --green: #0e7c4a;
+  --green-soft: #e6f7ef;
+  --blue: #1559c4;
+  --blue-soft: #eaf0fd;
+  --amber: #a05c00;
+  --amber-soft: #fff4e0;
+  --accent: #1559c4;
+  --accent2: #0e7c4a;
+  --red: #c0392b;
+  --red-soft: #fdecea;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Be Vietnam Pro', Arial, sans-serif;
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--ink);
+  min-height: 100vh;
+}
+
+/* ── SEARCH SCREEN ── */
+#search-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  background: linear-gradient(160deg, #0a1e3d 0%, #0f2d5a 55%, #0e3d2a 100%);
+}
+
+.brand-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 36px;
+}
+.brand-dot {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, #2ecc71, #1abc9c);
+  border-radius: 10px;
+  display: grid; place-items: center;
+  font-size: 18px;
+}
+.brand-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255,255,255,.55);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.search-title {
+  font-size: 28px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -.02em;
+  text-align: center;
+  line-height: 1.25;
+  margin-bottom: 8px;
+}
+.search-sub {
+  font-size: 13px;
+  color: rgba(255,255,255,.45);
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.search-box {
+  background: #fff;
+  border-radius: 16px;
+  padding: 6px 6px 6px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 520px;
+  box-shadow: 0 24px 60px rgba(0,0,0,.28);
+  margin-bottom: 16px;
+}
+.search-box input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font: 700 15px 'Be Vietnam Pro', sans-serif;
+  color: var(--ink);
+  background: transparent;
+  letter-spacing: .02em;
+}
+.search-box input::placeholder { color: #b0bac9; font-weight: 400; }
+.search-btn {
+  background: linear-gradient(135deg, #1559c4, #0e3d8c);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 22px;
+  font: 700 13px 'Be Vietnam Pro', sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: .15s;
+}
+.search-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(21,89,196,.4); }
+.search-btn:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+
+.search-hint {
+  font-size: 11px;
+  color: rgba(255,255,255,.3);
+  text-align: center;
+}
+.search-hint span { color: rgba(255,255,255,.55); font-weight: 600; }
+
+#search-error {
+  display: none;
+  background: rgba(192,57,43,.15);
+  border: 1px solid rgba(192,57,43,.3);
+  border-radius: 10px;
+  padding: 10px 16px;
+  color: #ff8a80;
+  font-size: 12px;
+  margin-top: 12px;
+  max-width: 520px;
+  width: 100%;
+  text-align: center;
+}
+
+/* ── RESULT SCREEN ── */
+#result-screen { display: none; }
+
+/* Topbar */
+.topbar {
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+  padding: 0 24px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 500;
+}
+.topbar-left { display: flex; align-items: center; gap: 14px; }
+.back-btn {
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font: 600 12px 'Be Vietnam Pro', sans-serif;
+  cursor: pointer;
+  color: var(--muted);
+  display: flex; align-items: center; gap: 6px;
+  transition: .14s;
+}
+.back-btn:hover { background: var(--bg); }
+.topbar-code {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: .04em;
+}
+.topbar-right { display: flex; gap: 8px; }
+.btn-secondary {
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font: 600 12px 'Be Vietnam Pro', sans-serif;
+  cursor: pointer;
+  color: var(--ink);
+  transition: .14s;
+}
+.btn-secondary:hover { background: var(--bg); }
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font: 700 12px 'Be Vietnam Pro', sans-serif;
+  cursor: pointer;
+  transition: .14s;
+}
+.btn-primary:hover { background: #0e3d8c; }
+
+.shell { max-width: 1100px; margin: 0 auto; padding: 24px 20px 48px; display: flex; flex-direction: column; gap: 16px; }
+
+/* ── HERO ── */
+.hero {
+  background: linear-gradient(135deg, #0a1e3d 0%, #0f2d5a 70%, #0e3d2a 100%);
+  border-radius: 18px;
+  padding: 28px 32px;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+}
+.hero::after {
+  content: '';
+  position: absolute;
+  width: 340px; height: 340px;
+  border-radius: 50%;
+  right: -120px; top: -200px;
+  border: 60px solid rgba(46,204,113,.1);
+  pointer-events: none;
+}
+.hero-grid { display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: start; position: relative; z-index: 1; }
+.hero-eyebrow {
+  font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  color: #7defa8; display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+}
+.hero-eyebrow::before { content: ''; width: 24px; height: 2px; background: #2ecc71; }
+.hero-title { font-size: 26px; font-weight: 800; line-height: 1.2; letter-spacing: -.02em; margin-bottom: 8px; }
+.hero-desc { font-size: 12px; color: rgba(255,255,255,.5); max-width: 500px; line-height: 1.6; }
+
+.status-verified {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(46,204,113,.15); border: 1px solid rgba(46,204,113,.3);
+  border-radius: 999px; padding: 6px 12px;
+  font-size: 11px; font-weight: 700; color: #7defa8;
+  margin-top: 14px;
+}
+
+.hero-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+.hero-stat {
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+.hero-stat-val { font-size: 20px; font-weight: 800; line-height: 1; }
+.hero-stat-lbl { font-size: 10px; color: rgba(255,255,255,.45); margin-top: 3px; font-weight: 500; }
+
+/* ── SECTION ── */
+.section-head {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+}
+.section-num {
+  width: 22px; height: 22px; border-radius: 6px;
+  background: var(--accent); color: #fff;
+  font-size: 10px; font-weight: 800;
+  display: grid; place-items: center; flex-shrink: 0;
+}
+.section-title { font-size: 14px; font-weight: 700; }
+.section-sub { font-size: 11px; color: var(--muted); margin-left: auto; }
+
+/* ── INFO CARD ── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px 20px;
+}
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 20px; }
+.info-item label {
+  display: block; font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--muted); margin-bottom: 3px;
+}
+.info-item .val { font-size: 12px; font-weight: 600; }
+.span-2 { grid-column: span 2; }
+
+/* ── METRIC STRIP ── */
+.metric-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--card);
+}
+.metric-item {
+  padding: 16px 18px;
+  border-right: 1px solid var(--line);
+}
+.metric-item:last-child { border-right: none; }
+.metric-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.metric-val { font-size: 22px; font-weight: 800; margin-top: 4px; line-height: 1; }
+.metric-note { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+/* ── TWO COL ── */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+/* ── TABLE ── */
+.table-wrap { overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.data-table th {
+  padding: 8px 12px; text-align: left;
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--muted);
+  border-bottom: 2px solid var(--line);
+  background: #f8fafc;
+  white-space: nowrap;
+}
+.data-table td { padding: 9px 12px; border-bottom: 1px solid #f0f3f8; vertical-align: middle; }
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tbody tr:hover td { background: #f7fbff; }
+.mono { font-family: ui-monospace, monospace; font-size: 10.5px; }
+
+/* ── PILL ── */
+.pill {
+  display: inline-flex; padding: 3px 8px; border-radius: 999px;
+  font-size: 10px; font-weight: 700;
+}
+.pill-green { background: var(--green-soft); color: var(--green); }
+.pill-blue  { background: var(--blue-soft); color: var(--blue); }
+.pill-amber { background: var(--amber-soft); color: var(--amber); }
+.pill-gray  { background: #f0f3f8; color: #5a6478; }
+.pill-red   { background: var(--red-soft); color: var(--red); }
+
+/* ── MAP ── */
+#map { height: 360px; border-radius: 12px; overflow: hidden; }
+.map-card { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--card); }
+.map-toolbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 16px; background: var(--card); border-bottom: 1px solid var(--line);
+}
+.map-legend { display: flex; gap: 12px; }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; vertical-align: middle; }
+
+/* ── LOADING ── */
+.loading-wrap {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 60px 20px; gap: 14px;
+}
+.spinner {
+  width: 36px; height: 36px; border: 3px solid var(--line);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── EMPTY / ERROR ── */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 48px 24px; gap: 10px; text-align: center;
+}
+.empty-icon { font-size: 32px; opacity: .4; }
+.empty-title { font-size: 14px; font-weight: 700; color: var(--ink); }
+.empty-sub { font-size: 12px; color: var(--muted); }
+
+/* ── SUPPLY CHAIN TIMELINE ── */
+.timeline { display: flex; gap: 0; align-items: flex-start; position: relative; padding: 0 4px; }
+.timeline::before {
+  content: ''; position: absolute;
+  left: calc(40px / 2); right: calc(40px / 2); top: 20px;
+  height: 2px; background: var(--line);
+}
+.step { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; position: relative; z-index: 1; }
+.step-icon {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 16px;
+  background: var(--card); border: 2px solid var(--line);
+}
+.step.done .step-icon { background: var(--accent); border-color: var(--accent); }
+.step strong { font-size: 11px; }
+.step span { font-size: 10px; color: var(--muted); line-height: 1.4; }
+
+@media (max-width: 768px) {
+  .hero-grid { grid-template-columns: 1fr; }
+  .two-col { grid-template-columns: 1fr; }
+  .info-grid { grid-template-columns: 1fr; }
+  .span-2 { grid-column: auto; }
+  .metric-strip { grid-template-columns: 1fr 1fr; }
+  .metric-item:nth-child(2) { border-right: none; }
+  .metric-item:nth-child(3) { border-right: 1px solid var(--line); }
+  .shell { padding: 16px 12px 36px; }
+  .search-title { font-size: 22px; }
+}
+
+@media print {
+  .topbar, .back-btn, .btn-primary, .btn-secondary { display: none !important; }
+  body { background: #fff; }
+  .shell { padding: 0; }
+  .hero { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════
+     SEARCH SCREEN
+═══════════════════════════════ -->
+<div id="search-screen">
+  <div class="brand-badge">
+    <div class="brand-dot">🌿</div>
+    <div class="brand-label">Hệ thống EUDR · </div>
+  </div>
+
+  <h1 class="search-title">Tra cứu phiếu<br>truy xuất nguồn gốc</h1>
+  <p class="search-sub">Nhập mã xuất kho để xem thông tin vùng trồng và chuỗi cung ứng</p>
+
+  <div class="search-box">
+    <span style="font-size:16px;opacity:.4">🔍</span>
+    <input type="text" id="search-input" placeholder="VD: XK260626-01 hoặc XK_1" autocomplete="off" spellcheck="false">
+    <button class="search-btn" id="search-btn" onclick="doSearch()">Tra cứu</button>
+  </div>
+
+  <p class="search-hint">Ví dụ: <span>XK260626-01</span> · <span>XK_1</span> · <span>XK_2</span> · ...</p>
+  <div id="search-error"></div>
+</div>
+
+<!-- ═══════════════════════════════
+     RESULT SCREEN
+═══════════════════════════════ -->
+<div id="result-screen">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="back-btn" onclick="goBack()">← Tra cứu lại</button>
+      <span class="topbar-code" id="tb-code">—</span>
+    </div>
+    <div class="topbar-right">
+      <button class="btn-secondary" onclick="window.print()">↧ Xuất PDF</button>
+    </div>
+  </div>
+
+  <div class="shell" id="result-content">
+    <div class="loading-wrap">
+      <div class="spinner"></div>
+      <span style="font-size:12px;color:var(--muted)">Đang tải dữ liệu...</span>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════
+var SHEET_ID = '1SNvJEK6nF0wQFbE8xf5IltTdUFAApUCr5AkUKMGkPl4';
+
+// GID của từng sheet — cần lấy từ URL khi mở từng tab trong Google Sheets
+// Tab đầu tiên thường là gid=0, các tab sau có số khác
+// Bạn cập nhật các gid này nếu cần (xem hướng dẫn ở cuối file)
+var SHEET_GIDS = {
+  fact_xuat_kho: '0',        // Tab "fact_xuat_kho"
+  fact_xuat_kho_plot: '1482827317'
+};
+
+// ── FAKE DATA bổ sung (các field chưa có trong Sheet) ─────
+var FAKE = {
+  supplier: {
+    name: 'CÔNG TY TNHH MTV CAO SU CHƯ SÊ',
+    tax: '5900190497',
+    phone: '0269.385.1159',
+    email: 'chusecrc@gmail.com',
+    address: 'Thị trấn Chư Sê, huyện Chư Sê, tỉnh Gia Lai'
+  },
+  getVehicle: function() {
+    var plates = ['51G-654.21', '50E-541.92', '51B-223.45', '51A-781.32'];
+    return plates[Math.floor(Math.random() * plates.length)];
+  },
+  getBuyer: function(code) {
+    var buyers = {
+      'B2601': { name: 'Cty TNHH Minh Thy Vàng', tax: '3901038237', address: 'Số 216 ấp Giữa, xã Phước Thạnh, tỉnh Tây Ninh' },
+      'DEFAULT': { name: 'Cty TNHH Thương mại XNK Cao su Việt', tax: '0312456789', address: '45 Nguyễn Đình Chiểu, Q.3, TP.HCM' }
+    };
+    return buyers[code] || buyers['DEFAULT'];
+  }
+};
+
+// ═══════════════════════════════════════════════════════════
+// GOOGLE SHEETS FETCH — gviz/tq API (hỗ trợ CORS từ file://)
+// ═══════════════════════════════════════════════════════════
+function gvizUrl(gid) {
+  return 'https://docs.google.com/spreadsheets/d/' + SHEET_ID
+    + '/gviz/tq?tqx=out:json&gid=' + gid;
+}
+
+function parseGviz(text) {
+  // Response: /*O_o*/\ngoogle.visualization.Query.setResponse({...});
+  var jsonStr = text.replace(/^\/\*[\s\S]*?\*\/\s*/, '').replace(/^google\.visualization\.Query\.setResponse\(/, '').replace(/\);?\s*$/, '');
+  var data = JSON.parse(jsonStr);
+  var cols = (data.table.cols || []).map(function(c) { return (c.label || c.id || '').trim(); });
+  var rows = [];
+  (data.table.rows || []).forEach(function(row) {
+    var obj = {};
+    var hasData = false;
+    cols.forEach(function(col, i) {
+      var cell = row.c && row.c[i];
+      var v = '';
+      if (cell && cell.v !== null && cell.v !== undefined) {
+        v = String(cell.f || cell.v).trim();
+      }
+      obj[col] = v;
+      if (v) hasData = true;
+    });
+    if (hasData) rows.push(obj);
+  });
+  return rows;
+}
+
+function fetchCsv(gid) {
+  return fetch(gvizUrl(gid))
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.text();
+    })
+    .then(parseGviz);
+}
+
+// ═══════════════════════════════════════════════════════════
+// SEARCH LOGIC
+// ═══════════════════════════════════════════════════════════
+var searchInput = document.getElementById('search-input');
+var searchBtn   = document.getElementById('search-btn');
+var searchError = document.getElementById('search-error');
+
+searchInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') doSearch();
+});
+
+function doSearch() {
+  var raw = searchInput.value.trim();
+  if (!raw) { showError('Vui lòng nhập mã xuất kho.'); return; }
+
+  // Normalize:
+  // "XK260626-01" → giữ nguyên (format đặc biệt có ngày)
+  // "xk260626-01" → "XK260626-01"
+  // "XK_1", "XK-1", "XK1", "xk1" → "XK_1"
+  var code = raw.toUpperCase().trim();
+
+  if (!/^XK/i.test(code)) {
+    showError('Mã không hợp lệ. Mã phải bắt đầu bằng XK (VD: XK260626-01 hoặc XK_1).');
+    return;
+  }
+
+  // Nếu không phải format có ngày (XKddmmyy-nn), normalize về XK_n
+  if (!/^XK\d{6}-\d+$/.test(code)) {
+    code = code.replace(/^XK[\-_\s]*(\d+)$/i, 'XK_$1');
+    if (!/^XK_\d+$/.test(code)) {
+      showError('Mã không hợp lệ. Định dạng đúng: XK260626-01 hoặc XK_1, XK_2...');
+      return;
+    }
+  }
+
+  hideError();
+  searchBtn.disabled = true;
+  searchBtn.textContent = '⏳ Đang tải...';
+
+  // Show result screen in loading state
+  document.getElementById('search-screen').style.display = 'none';
+  document.getElementById('result-screen').style.display = 'block';
+  document.getElementById('tb-code').textContent = code;
+  document.getElementById('result-content').innerHTML =
+    '<div class="loading-wrap"><div class="spinner"></div><span style="font-size:12px;color:var(--muted)">Đang tải dữ liệu từ Google Sheets...</span></div>';
+
+  Promise.all([
+    fetchCsv(SHEET_GIDS.fact_xuat_kho),
+    fetchCsv(SHEET_GIDS.fact_xuat_kho_plot)
+  ]).then(function(results) {
+    var orders = results[0];
+    var plots  = results[1];
+
+    var order = orders.filter(function(r) { return r.MA_XK === code; })[0];
+    if (!order) {
+      // Thử tìm gần đúng
+      var similar = orders.map(function(r) { return r.MA_XK; }).filter(Boolean).slice(0,5).join(', ');
+      showResultError('Không tìm thấy mã <strong>' + code + '</strong> trong dữ liệu.',
+        similar ? 'Các mã có sẵn: ' + similar : '');
+      return;
+    }
+
+    var orderPlots = plots.filter(function(r) { return r.MA_XK === code; });
+    renderResult(code, order, orderPlots);
+  }).catch(function(err) {
+    console.error(err);
+    showResultError('Không thể kết nối tới Google Sheets.', 'Kiểm tra lại kết nối mạng hoặc quyền truy cập sheet.');
+  }).finally(function() {
+    searchBtn.disabled = false;
+    searchBtn.textContent = 'Tra cứu';
+  });
+}
+
+function showError(msg) {
+  searchError.innerHTML = msg;
+  searchError.style.display = 'block';
+}
+function hideError() {
+  searchError.style.display = 'none';
+}
+function showResultError(title, sub) {
+  document.getElementById('result-content').innerHTML =
+    '<div class="empty-state"><div class="empty-icon">🔍</div>'
+    + '<div class="empty-title">' + title + '</div>'
+    + '<div class="empty-sub">' + sub + '</div>'
+    + '<button class="btn-primary" style="margin-top:16px" onclick="goBack()">← Thử lại</button>'
+    + '</div>';
+}
+
+function goBack() {
+  document.getElementById('result-screen').style.display = 'none';
+  document.getElementById('search-screen').style.display = 'flex';
+  searchInput.focus();
+  if (window._leafletMap) { window._leafletMap.remove(); window._leafletMap = null; }
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER RESULT
+// ═══════════════════════════════════════════════════════════
+function fmt(n) {
+  if (!n && n !== 0) return '—';
+  var num = parseFloat(String(n).replace(/,/g, ''));
+  if (isNaN(num)) return n || '—';
+  return num.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  // dd/mm/yyyy → dd/mm/yyyy (giữ nguyên)
+  return d;
+}
+
+function pill(text, cls) {
+  return '<span class="pill ' + (cls || 'pill-gray') + '">' + text + '</span>';
+}
+
+function renderResult(code, order, plots) {
+  var buyer   = FAKE.getBuyer(order.MA_B || '');
+  var vehicle = FAKE.getVehicle();
+  var plotIds = (order.PLOT_IDS || '').split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+  var totalArea = plots.reduce(function(s, p) { return s + (parseFloat(p.DIEN_TICH_HA) || 0); }, 0);
+  var certCount = plots.filter(function(p) { return p.BANG_CHUNG_PHAP_LY && p.BANG_CHUNG_PHAP_LY !== '—' && p.BANG_CHUNG_PHAP_LY !== ''; }).length;
+  var activeCount = plots.filter(function(p) { return p.TINH_TRANG_KHAI_THAC === 'Đang khai thác'; }).length;
+
+  var html = '';
+
+  // ── HERO ──
+  html += '<div class="hero"><div class="hero-grid">';
+  html += '<div>';
+  html += '<div class="hero-eyebrow">EUDR Traceability Record</div>';
+  html += '<h1 class="hero-title">Phiếu truy xuất nguồn gốc<br>cao su thiên nhiên</h1>';
+  html += '<div style="display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap">';
+  html += '<div style="font-size:20px;font-weight:800;letter-spacing:.06em;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);padding:8px 14px;border-radius:10px">' + code + '</div>';
+  html += '<div class="status-verified">✓ Hồ sơ hợp lệ</div>';
+  html += '</div>';
+
+  html += '<div class="hero-stats">';
+  html += '<div class="hero-stat"><div class="hero-stat-val">' + fmt(order.KL_XUAT_KHO_TONG_KG || 0) + '</div><div class="hero-stat-lbl">kg xuất kho</div></div>';
+  html += '<div class="hero-stat"><div class="hero-stat-val">' + plots.length + '</div><div class="hero-stat-lbl">lô vùng trồng</div></div>';
+  html += '<div class="hero-stat"><div class="hero-stat-val">' + fmt(totalArea) + '</div><div class="hero-stat-lbl">ha diện tích</div></div>';
+  html += '<div class="hero-stat"><div class="hero-stat-val">' + certCount + '/' + plots.length + '</div><div class="hero-stat-lbl">lô có giấy phép</div></div>';
+  html += '</div>';
+  html += '</div>'; // hero-left
+
+  // Hero right: ngày xuất
+  html += '<div style="text-align:right;z-index:1">';
+  html += '<div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Ngày xuất kho</div>';
+  html += '<div style="font-size:22px;font-weight:800">' + fmtDate(order.NGAY_XUAT) + '</div>';
+  html += '<div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px">' + (order.LOAI_SAN_PHAM || '—') + '</div>';
+  html += '</div>';
+
+  html += '</div></div>'; // hero-grid, hero
+
+  // ── SECTION 1: CÁC BÊN ──
+  html += '<div>';
+  html += sectionHead('01', 'Thông tin các bên', 'Nhà cung cấp & Khách hàng');
+  html += '<div class="two-col">';
+
+  // Supplier card
+  html += '<div class="card">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
+  html += '<span style="font-size:12px;font-weight:700">Đơn vị cung cấp</span>';
+  html += pill('Nhà cung cấp', 'pill-blue');
+  html += '</div>';
+  html += '<div class="info-grid">';
+  html += infoRow('Tên đơn vị', FAKE.supplier.name, true);
+  html += infoRow('Mã số thuế', FAKE.supplier.tax);
+  html += infoRow('Điện thoại', FAKE.supplier.phone);
+  html += infoRow('Email', FAKE.supplier.email);
+  html += infoRow('Địa chỉ', FAKE.supplier.address, true);
+  html += '</div></div>';
+
+  // Buyer card
+  html += '<div class="card">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
+  html += '<span style="font-size:12px;font-weight:700">Đơn vị mua hàng</span>';
+  html += pill('Khách hàng', 'pill-green');
+  html += '</div>';
+  html += '<div class="info-grid">';
+  html += infoRow('Tên đơn vị', buyer.name, true);
+  html += infoRow('Mã số thuế', buyer.tax);
+  html += infoRow('Hóa đơn số', order.MA_HOA_DON || '—');
+  html += infoRow('Phương tiện', vehicle);
+  html += infoRow('Địa chỉ', buyer.address, true);
+  html += '</div></div>';
+
+  html += '</div></div>'; // two-col, section
+
+  // ── SECTION 2: ĐƠN HÀNG ──
+  html += '<div>';
+  html += sectionHead('02', 'Thông tin đơn hàng', 'Sản phẩm & chuỗi cung ứng');
+
+  // Summary strip
+  html += '<div class="metric-strip" style="margin-bottom:16px">';
+  html += metricItem('Mã xuất kho', code, '');
+  html += metricItem('Ngày xuất', fmtDate(order.NGAY_XUAT), '');
+  html += metricItem('Khối lượng', fmt(order.KL_XUAT_KHO_TONG_KG) + ' kg', order.LOAI_SAN_PHAM || '');
+  html += metricItem('Ngày chế biến', fmtDate(order.NGAY_CHE_BIEN), 'Lô: ' + (order.MA_C || '—'));
+  html += '</div>';
+
+  // Supply chain details
+  html += '<div class="card">';
+  html += '<div class="info-grid">';
+  html += infoRow('Mã đơn xuất kho (MA_XK)', code);
+  html += infoRow('Mã hóa đơn', order.MA_HOA_DON || '—');
+  html += infoRow('Mã thành phẩm (MA_D)', order.MA_D || '—');
+  html += infoRow('Mã chế biến (MA_C)', order.MA_C || '—');
+  html += infoRow('Mã thu gom (MA_B)', order.MA_B || '—');
+  html += infoRow('Mã nguyên liệu (MA_A)', order.MA_A || '—');
+  html += infoRow('Loại sản phẩm', order.LOAI_SAN_PHAM || '—');
+  html += infoRow('Ngày chế biến', fmtDate(order.NGAY_CHE_BIEN));
+  html += '</div></div>';
+
+  // Timeline
+  html += '<div class="card" style="margin-top:14px">';
+  html += '<div style="font-size:11px;font-weight:700;margin-bottom:16px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Chuỗi cung ứng</div>';
+  html += '<div class="timeline">';
+  var steps = [
+    {icon:'🌿', label:'Vùng trồng', sub:'Plot ID & tọa độ', done: plots.length > 0},
+    {icon:'🪣', label:'Thu gom', sub:'Mã: ' + (order.MA_A || '—'), done: !!order.MA_A},
+    {icon:'⚙️', label:'Chế biến', sub:'Mã: ' + (order.MA_C || '—'), done: !!order.MA_C},
+    {icon:'📦', label:'Thành phẩm', sub:'Mã: ' + (order.MA_D || '—'), done: !!order.MA_D},
+    {icon:'🚚', label:'Xuất kho', sub:'Mã: ' + code, done: true},
+  ];
+  steps.forEach(function(s) {
+    html += '<div class="step ' + (s.done ? 'done' : '') + '">';
+    html += '<div class="step-icon">' + (s.done ? '<span style="color:#fff;font-size:14px">✓</span>' : s.icon) + '</div>';
+    html += '<strong>' + s.label + '</strong>';
+    html += '<span>' + s.sub + '</span>';
+    html += '</div>';
+  });
+  html += '</div></div>';
+  html += '</div>'; // section
+
+  // ── SECTION 3: BẢN ĐỒ ──
+  html += '<div>';
+  html += sectionHead('03', 'Bản đồ vùng trồng', plots.length + ' lô đã xác định tọa độ');
+
+  if (plots.length > 0) {
+    var validPlots = plots.filter(function(p) { return p.KINH_DO && p.VI_DO && parseFloat(p.KINH_DO) && parseFloat(p.VI_DO); });
+    html += '<div class="map-card">';
+    html += '<div class="map-toolbar">';
+    html += '<span style="font-size:11px;font-weight:700">Phân bổ vùng nguyên liệu</span>';
+    html += '<div class="map-legend">';
+    html += '<span><span class="legend-dot" style="background:#1559c4"></span><span style="font-size:10px">Vùng trồng</span></span>';
+    html += '<span><span class="legend-dot" style="background:#0e7c4a"></span><span style="font-size:10px">Có giấy phép</span></span>';
+    html += '</div></div>';
+    html += '<div id="map"></div></div>';
+  } else {
+    html += '<div class="card"><div class="empty-state"><div class="empty-icon">📍</div><div class="empty-title">Chưa có dữ liệu tọa độ</div><div class="empty-sub">Các lô vùng trồng chưa được gắn tọa độ định vị</div></div></div>';
+  }
+  html += '</div>'; // section
+
+  // ── SECTION 4: DANH SÁCH LÔ VÙNG TRỒNG ──
+  html += '<div>';
+  html += sectionHead('04', 'Danh sách lô vùng trồng', plots.length + ' lô thuộc đơn xuất kho này');
+
+  html += '<div class="card">';
+  if (plots.length > 0) {
+    html += '<div class="table-wrap"><table class="data-table">';
+    html += '<thead><tr>'
+      + '<th>#</th>'
+      + '<th>Plot ID</th>'
+      + '<th>Tổ</th>'
+      + '<th>Diện tích (ha)</th>'
+      + '<th>Năm trồng</th>'
+      + '<th>Bắt đầu KT</th>'
+      + '<th>Tình trạng KT</th>'
+      + '<th>Bằng chứng pháp lý</th>'
+      + '<th>Tọa độ</th>'
+      + '</tr></thead><tbody>';
+
+    plots.forEach(function(p, i) {
+      var hasCert = p.BANG_CHUNG_PHAP_LY && p.BANG_CHUNG_PHAP_LY !== '—' && p.BANG_CHUNG_PHAP_LY !== '';
+      var isActive = p.TINH_TRANG_KHAI_THAC === 'Đang khai thác';
+      html += '<tr>';
+      html += '<td style="color:var(--muted)">' + (i+1) + '</td>';
+      html += '<td class="mono"><strong>' + (p.PLOT_ID || '—') + '</strong></td>';
+      html += '<td>' + (p.TO || '—') + '</td>';
+      html += '<td><strong>' + fmt(p.DIEN_TICH_HA) + '</strong></td>';
+      html += '<td>' + (p.NAM_TRONG || '—') + '</td>';
+      html += '<td>' + (p.NAM_BAT_DAU_KHAI_THAC || '—') + '</td>';
+      html += '<td>' + pill(p.TINH_TRANG_KHAI_THAC || '—', isActive ? 'pill-green' : 'pill-amber') + '</td>';
+      html += '<td>' + (hasCert ? pill(p.BANG_CHUNG_PHAP_LY, 'pill-blue') : pill('Chưa có', 'pill-gray')) + '</td>';
+      var lat = parseFloat(p.VI_DO), lng = parseFloat(p.KINH_DO);
+      html += '<td class="mono" style="font-size:10px">' + (lat && lng ? lat.toFixed(4) + ', ' + lng.toFixed(4) : '—') + '</td>';
+      html += '</tr>';
+    });
+
+    // Footer tổng
+    html += '<tfoot><tr>'
+      + '<td colspan="3" style="font-weight:700;padding:9px 12px;background:#f8fafc;border-top:2px solid var(--line)">Tổng cộng</td>'
+      + '<td style="font-weight:800;padding:9px 12px;background:#f8fafc;border-top:2px solid var(--line)">' + fmt(totalArea) + ' ha</td>'
+      + '<td colspan="3" style="padding:9px 12px;background:#f8fafc;border-top:2px solid var(--line)"></td>'
+      + '<td style="padding:9px 12px;background:#f8fafc;border-top:2px solid var(--line)">'
+        + certCount + '/' + plots.length + ' lô có giấy phép'
+      + '</td>'
+      + '<td style="padding:9px 12px;background:#f8fafc;border-top:2px solid var(--line)">'
+        + activeCount + '/' + plots.length + ' đang khai thác'
+      + '</td>'
+      + '</tr></tfoot>';
+
+    html += '</tbody></table></div>';
+  } else {
+    html += '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Không có dữ liệu lô vùng trồng</div><div class="empty-sub">Đơn xuất kho này chưa được liên kết với vùng trồng</div></div>';
+  }
+  html += '</div></div>'; // card, section
+
+  // ── SECTION 5: XÁC THỰC ──
+  html += '<div>';
+  html += sectionHead('05', 'Xác thực dữ liệu', 'Các điểm kiểm soát tính toàn vẹn');
+  html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">';
+
+  var checks = [
+    { ok: plots.length > 0, label: 'Tọa độ vùng trồng', sub: plots.length + ' lô có tọa độ định vị' },
+    { ok: certCount > 0, label: 'Bằng chứng pháp lý', sub: certCount + '/' + plots.length + ' lô có tài liệu' },
+    { ok: !!order.MA_C, label: 'Mã chế biến', sub: 'Lô: ' + (order.MA_C || 'Chưa gắn') },
+    { ok: !!order.MA_B, label: 'Mã thu gom', sub: 'Lô: ' + (order.MA_B || 'Chưa gắn') },
+    { ok: !!order.MA_A, label: 'Mã nguyên liệu', sub: 'Lô: ' + (order.MA_A || 'Chưa gắn') },
+    { ok: true, label: 'Mã truy xuất duy nhất', sub: 'Định danh: ' + code },
+  ];
+
+  checks.forEach(function(c) {
+    html += '<div class="card" style="display:flex;gap:10px;align-items:flex-start">';
+    html += '<div style="width:28px;height:28px;border-radius:50%;background:' + (c.ok ? 'var(--green-soft)' : 'var(--amber-soft)') + ';color:' + (c.ok ? 'var(--green)' : 'var(--amber)') + ';display:grid;place-items:center;font-weight:800;flex-shrink:0">' + (c.ok ? '✓' : '!') + '</div>';
+    html += '<div><div style="font-size:11px;font-weight:700">' + c.label + '</div><div style="font-size:10px;color:var(--muted);margin-top:2px">' + c.sub + '</div></div>';
+    html += '</div>';
+  });
+  html += '</div></div>'; // grid, section
+
+  // ── FOOTER ──
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;background:var(--ink);border-radius:14px;color:rgba(255,255,255,.5);font-size:10px">';
+  html += '<div><strong style="color:#fff">Phiếu truy xuất nguồn gốc cao su</strong><br>Dữ liệu theo hồ sơ đơn hàng tại thời điểm phát hành.</div>';
+  html += '<div style="text-align:right"><span>Dữ liệu từ</span><div style="font-size:15px;font-weight:800;color:#fff;margin-top:2px">EUDR<span style="color:#2ecc71">.</span>vn</div></div>';
+  html += '</div>';
+
+  // Render HTML
+  document.getElementById('result-content').innerHTML = html;
+  document.getElementById('tb-code').textContent = code;
+
+  // Init map after DOM is ready
+  if (plots.length > 0) {
+    setTimeout(function() { initMap(plots); }, 100);
+  }
+}
+
+// ── HELPERS ──────────────────────────────────────────────
+function sectionHead(num, title, sub) {
+  return '<div class="section-head"><div class="section-num">' + num + '</div>'
+    + '<div class="section-title">' + title + '</div>'
+    + '<div class="section-sub">' + sub + '</div>'
+    + '</div>';
+}
+
+function infoRow(label, val, span) {
+  return '<div class="info-item' + (span ? ' span-2' : '') + '"><label>' + label + '</label><div class="val">' + (val || '—') + '</div></div>';
+}
+
+function metricItem(lbl, val, note) {
+  return '<div class="metric-item"><div class="metric-lbl">' + lbl + '</div><div class="metric-val" style="font-size:16px;font-weight:800">' + val + '</div>' + (note ? '<div class="metric-note">' + note + '</div>' : '') + '</div>';
+}
+
+// ── MAP ──────────────────────────────────────────────────
+function initMap(plots) {
+  if (window._leafletMap) { window._leafletMap.remove(); window._leafletMap = null; }
+  var validPlots = plots.filter(function(p) { return parseFloat(p.KINH_DO) && parseFloat(p.VI_DO); });
+  if (!validPlots.length || !window.L) return;
+
+  var map = L.map('map', { zoomControl: true });
+  window._leafletMap = map;
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '© OpenStreetMap'
+  }).addTo(map);
+
+  var bounds = [];
+  validPlots.forEach(function(p) {
+    var lat = parseFloat(p.VI_DO), lng = parseFloat(p.KINH_DO);
+    var hasCert = p.BANG_CHUNG_PHAP_LY && p.BANG_CHUNG_PHAP_LY !== '—' && p.BANG_CHUNG_PHAP_LY !== '';
+    var color = hasCert ? '#0e7c4a' : '#1559c4';
+    var marker = L.circleMarker([lat, lng], {
+      radius: 7,
+      fillColor: color,
+      color: '#fff',
+      weight: 2,
+      fillOpacity: 0.85
+    }).addTo(map);
+    marker.bindPopup(
+      '<strong>' + (p.PLOT_ID || '—') + '</strong><br>'
+      + 'Tổ: ' + (p.TO || '—') + '<br>'
+      + 'Diện tích: <strong>' + (p.DIEN_TICH_HA || '—') + ' ha</strong><br>'
+      + 'Năm trồng: ' + (p.NAM_TRONG || '—') + '<br>'
+      + 'Tình trạng: ' + (p.TINH_TRANG_KHAI_THAC || '—') + '<br>'
+      + 'Bằng chứng PL: ' + (p.BANG_CHUNG_PHAP_LY || 'Chưa có')
+    );
+    bounds.push([lat, lng]);
+  });
+
+  if (bounds.length === 1) {
+    map.setView(bounds[0], 13);
+  } else if (bounds.length > 1) {
+    map.fitBounds(bounds, { padding: [30, 30] });
+  }
+}
+
+// ── AUTO-FOCUS ───────────────────────────────────────────
+window.addEventListener('load', function() {
+  searchInput.focus();
+});
+</script>
+</body>
+</html>
